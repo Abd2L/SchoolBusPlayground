@@ -1,0 +1,947 @@
+<title>Chef d'orchestre Citémétrie</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=JetBrains+Mono:wght@400;500&family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout : en-tête, onglets, colonne de travail + colonne latérale (simulateur, sessions), tiroir de détail à droite. */
+:root {
+  --bg: #F2F5F5;
+  --surface: #FFFFFF;
+  --surface-2: #E8EEEE;
+  --ink: #14202A;
+  --ink-2: #4A5A63;
+  --ink-3: #6B7B83;
+  --line: #D3DCDE;
+  --accent: #0E6175;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #DCECF0;
+  --you: #74389A;
+  --you-ink: #FFFFFF;
+  --you-soft: #F1E6F7;
+  --ok: #2B7448;
+  --ok-soft: #E0F0E6;
+  --warn: #8F5805;
+  --warn-soft: #FAEDD4;
+  --crit: #B42318;
+  --crit-soft: #FBE3E0;
+  --scrim: rgba(12, 20, 26, .38);
+  --shadow: 0 1px 2px rgba(20, 32, 42, .05), 0 6px 20px rgba(20, 32, 42, .07);
+  --shadow-lg: 0 10px 40px rgba(20, 32, 42, .18);
+  --f-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Public Sans", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1519; --surface: #151E24; --surface-2: #1C272E; --ink: #E4ECEF; --ink-2: #A3B3BA; --ink-3: #7F9098; --line: #2A3740;
+    --accent: #56B6CB; --accent-ink: #082029; --accent-soft: #13323A;
+    --you: #C595E4; --you-ink: #1E1027; --you-soft: #2D2037;
+    --ok: #67C590; --ok-soft: #14301F; --warn: #E3AE52; --warn-soft: #33270F; --crit: #F28378; --crit-soft: #3A1B18;
+    --scrim: rgba(0, 0, 0, .55); --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 20px rgba(0, 0, 0, .25); --shadow-lg: 0 10px 40px rgba(0, 0, 0, .5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1519; --surface: #151E24; --surface-2: #1C272E; --ink: #E4ECEF; --ink-2: #A3B3BA; --ink-3: #7F9098; --line: #2A3740;
+  --accent: #56B6CB; --accent-ink: #082029; --accent-soft: #13323A;
+  --you: #C595E4; --you-ink: #1E1027; --you-soft: #2D2037;
+  --ok: #67C590; --ok-soft: #14301F; --warn: #E3AE52; --warn-soft: #33270F; --crit: #F28378; --crit-soft: #3A1B18;
+  --scrim: rgba(0, 0, 0, .55); --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 20px rgba(0, 0, 0, .25); --shadow-lg: 0 10px 40px rgba(0, 0, 0, .5);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 400 14px/1.5 var(--f-body); -webkit-font-smoothing: antialiased; }
+.app { max-width: 1240px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 64px; }
+@media (min-width: 760px) { .app { padding-inline: 28px; } }
+
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+h1 { font: 700 1.7rem/1.1 var(--f-display); letter-spacing: -.015em; }
+h2 { font: 700 1.12rem/1.25 var(--f-display); letter-spacing: -.005em; }
+h3 { font: 600 .95rem/1.3 var(--f-body); }
+p { margin: 0; }
+.mono { font-family: var(--f-mono); font-size: .8em; letter-spacing: 0; }
+.muted { color: var(--ink-2); }
+.small { font-size: .82rem; }
+.eyebrow { font-size: .7rem; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-3); font-weight: 700; }
+.num { font-variant-numeric: tabular-nums; }
+
+button { font: inherit; color: inherit; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 6px 12px; border-radius: 8px; font-weight: 600; font-size: .84rem; cursor: pointer; min-height: 34px; white-space: nowrap; }
+.btn:hover { border-color: var(--ink-3); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.you { background: var(--you); border-color: var(--you); color: var(--you-ink); }
+.btn.primary:hover, .btn.you:hover { filter: brightness(1.08); }
+.btn.quiet { background: transparent; border-color: transparent; color: var(--ink-2); }
+.btn.quiet:hover { color: var(--ink); background: var(--surface-2); }
+.btn:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+.linklike { border: 0; background: none; padding: 0; color: var(--accent); font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; text-decoration-thickness: 1px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+
+/* En-tête */
+.top { display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: flex-end; justify-content: space-between; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+.brand { display: grid; gap: 6px; min-width: 0; }
+.brand p { color: var(--ink-2); }
+.top-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.proto { display: inline-flex; align-items: center; gap: 6px; font-size: .76rem; font-weight: 700; color: var(--warn); background: var(--warn-soft); padding: 4px 10px; border-radius: 999px; }
+.confirm-inline { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: .84rem; }
+
+.tabs { display: flex; gap: 4px; overflow-x: auto; margin: 14px 0 22px; padding-bottom: 2px; }
+.tab { border: 0; background: transparent; padding: 7px 12px; border-radius: 8px; font-weight: 600; color: var(--ink-2); cursor: pointer; white-space: nowrap; display: inline-flex; gap: 7px; align-items: center; }
+.tab:hover { color: var(--ink); background: var(--surface-2); }
+.tab[aria-selected="true"] { background: var(--ink); color: var(--bg); }
+.tab .badge { font: 600 .72rem/1.5 var(--f-mono); background: var(--you); color: var(--you-ink); border-radius: 999px; padding: 0 7px; }
+
+/* Compteurs */
+.counters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 760px) { .counters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.counter { text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: var(--r); padding: 12px 14px; cursor: pointer; display: grid; gap: 3px; align-content: start; }
+.counter:hover { border-color: var(--ink-3); }
+.counter .n { font: 700 2rem/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.counter .l { font-weight: 700; }
+.counter .d { font-size: .78rem; color: var(--ink-2); }
+.counter.you { border-color: var(--you); background: var(--you-soft); }
+.counter.you .n { color: var(--you); }
+.counter.acc .n { color: var(--accent); }
+.counter.warn .n { color: var(--warn); }
+
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 28px; align-items: start; margin-top: 24px; }
+@media (max-width: 1000px) {
+  .cols { grid-template-columns: minmax(0, 1fr); }
+  .cols > aside { order: -1; }
+  .panel.sessions-mini { display: none; }
+  .sim { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) { .sim-btn span { display: none; } }
+.stack { display: grid; gap: 28px; min-width: 0; }
+.section { display: grid; gap: 10px; min-width: 0; }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px 12px; flex-wrap: wrap; }
+.section-head p { flex-basis: 100%; }
+
+/* Listes de tâches */
+.list { display: grid; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); overflow: hidden; }
+.row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 12px 14px; border-top: 1px solid var(--line); }
+.row:first-child { border-top: 0; }
+.row .main { min-width: 0; display: grid; gap: 3px; }
+.row .line1 { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.row .title { font-weight: 600; }
+.row .meta { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: .8rem; color: var(--ink-2); }
+@media (max-width: 560px) {
+  .row { grid-template-columns: auto minmax(0, 1fr); }
+  .row > .btn { grid-column: 2; justify-self: start; margin-top: 6px; }
+}
+.empty { padding: 18px 16px; color: var(--ink-2); background: var(--surface); border: 1px dashed var(--line); border-radius: var(--r); }
+
+.group { border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); overflow: hidden; }
+.group-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 10px 14px; background: var(--surface-2); border-bottom: 1px solid var(--line); }
+.group-head .who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.group-head + .row { border-top: 0; }
+
+.pill { display: inline-flex; align-items: center; gap: 5px; font-size: .72rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; background: var(--surface-2); color: var(--ink-2); }
+.pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.pill.info { background: var(--accent-soft); color: var(--accent); }
+.pill.accent { background: var(--you-soft); color: var(--you); }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.crit { background: var(--crit-soft); color: var(--crit); }
+.chip { display: inline-flex; align-items: center; font-size: .72rem; font-weight: 600; padding: 1px 7px; border-radius: 5px; border: 1px solid var(--line); color: var(--ink-2); white-space: nowrap; }
+.chip.crit { border-color: var(--crit); color: var(--crit); }
+.chip.warn { border-color: var(--warn); color: var(--warn); }
+.t-warn { color: var(--warn); font-weight: 600; }
+
+.av { width: 30px; height: 30px; border-radius: 50%; display: inline-grid; place-items: center; background: var(--surface-2); color: var(--ink); font: 700 .8rem/1 var(--f-display); flex: none; border: 1px solid var(--line); }
+.av.lg { width: 40px; height: 40px; font-size: 1rem; }
+
+/* Étiquette DPE : couleurs de l'étiquette officielle */
+.dpe { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-3); font-size: .8rem; }
+.dpe b { display: inline-grid; place-items: center; width: 24px; height: 20px; border-radius: 3px 10px 10px 3px; font: 700 .78rem/1 var(--f-display); }
+.dpe-A { background: #00A06D; color: #FFFFFF; } .dpe-B { background: #52B153; color: #FFFFFF; } .dpe-C { background: #A5CC74; color: #13240A; }
+.dpe-D { background: #F4E70F; color: #2A2600; } .dpe-E { background: #F0B50F; color: #2A1E00; } .dpe-F { background: #EB8235; color: #FFFFFF; } .dpe-G { background: #D7221F; color: #FFFFFF; }
+.dpe-x { background: var(--surface-2); color: var(--ink-3); }
+
+/* Colonne latérale */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: grid; gap: 12px; }
+.sim { display: grid; gap: 8px; }
+.sim-btn { text-align: left; border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 9px 12px; cursor: pointer; display: grid; gap: 1px; }
+.sim-btn:hover { border-color: var(--accent); }
+.sim-btn strong { font-weight: 700; font-size: .86rem; }
+.sim-btn span { font-size: .78rem; color: var(--ink-2); }
+.sim-btn.danger:hover { border-color: var(--crit); }
+.mini { display: grid; gap: 2px; }
+.mini button { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; text-align: left; border: 0; background: none; padding: 6px 4px; border-radius: 8px; cursor: pointer; }
+.mini button:hover { background: var(--surface-2); }
+.mini .r { font-size: .76rem; color: var(--ink-2); text-align: right; }
+
+/* Tableau des tâches */
+.filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-bottom: 14px; }
+.filters .field { flex: 1 1 160px; min-width: 0; }
+.field { display: grid; gap: 5px; min-width: 0; }
+.field label, .field .lab { font-weight: 600; font-size: .82rem; display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+input[type="text"], input[type="search"], textarea, select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; width: 100%; min-height: 36px; }
+textarea { min-height: 84px; resize: vertical; line-height: 1.45; }
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 900px; }
+th { font-size: .7rem; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-3); text-align: left; font-weight: 700; padding: 9px 12px; border-bottom: 1px solid var(--line); background: var(--surface-2); white-space: nowrap; }
+td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr { cursor: pointer; }
+tbody tr:hover td { background: var(--surface-2); }
+td .sub { font-size: .78rem; color: var(--ink-2); }
+
+/* Cartes dossiers et sessions */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.card-head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.card-head h3 { font: 700 1.05rem/1.2 var(--f-display); }
+.flags { display: flex; flex-wrap: wrap; gap: 6px; }
+.bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--surface-2); }
+.bar span { display: block; height: 100%; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .76rem; color: var(--ink-2); }
+.legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: 0; }
+.tasklets { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.tasklets li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: .84rem; }
+.tasklets li button { text-align: left; border: 0; background: none; padding: 0; cursor: pointer; color: var(--ink); min-width: 0; }
+.tasklets li button:hover { color: var(--accent); }
+.stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; margin: 0; }
+.stats div { display: flex; justify-content: space-between; gap: 8px; font-size: .84rem; border-bottom: 1px dotted var(--line); padding-bottom: 3px; }
+.stats dt { color: var(--ink-2); }
+.stats dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.rules { display: grid; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); overflow: hidden; }
+.rule { display: grid; grid-template-columns: 1fr 1.4fr 1.2fr; gap: 6px 18px; padding: 12px 14px; border-top: 1px solid var(--line); }
+.rule:first-child { border-top: 0; background: var(--surface-2); }
+.rule:first-child > div { font-size: .7rem; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-3); font-weight: 700; }
+@media (max-width: 760px) { .rule { grid-template-columns: minmax(0, 1fr); } .rule:first-child { display: none; } }
+.rule .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.rule .arrow { color: var(--ink-3); }
+
+/* Journal et tests */
+.log { display: grid; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); overflow: hidden; }
+.log-row { display: grid; grid-template-columns: 96px 120px minmax(0, 1fr); gap: 4px 14px; padding: 10px 14px; border-top: 1px solid var(--line); align-items: baseline; }
+.log-row:first-child { border-top: 0; }
+@media (max-width: 640px) { .log-row { grid-template-columns: auto minmax(0, 1fr); } .log-row .msg { grid-column: 1 / -1; } }
+.log-row .when { font: .76rem var(--f-mono); color: var(--ink-3); }
+.log-row .msg { min-width: 0; }
+.test-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; padding: 11px 14px; border-top: 1px solid var(--line); align-items: start; }
+.test-row:first-child { border-top: 0; }
+.mark { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; }
+.mark.ok { background: var(--ok-soft); color: var(--ok); }
+.mark.ko { background: var(--crit-soft); color: var(--crit); }
+.note { border: 1px solid var(--line); background: var(--surface); border-radius: var(--r); padding: 14px 16px; display: grid; gap: 6px; max-width: 75ch; }
+
+/* Tiroir de détail */
+.scrim { position: fixed; inset: 0; background: var(--scrim); z-index: 20; }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(580px, 100%); background: var(--surface); border-left: 1px solid var(--line); z-index: 21; display: flex; flex-direction: column; box-shadow: var(--shadow-lg); }
+.drawer-head { padding: calc(env(safe-area-inset-top, 0px) + 16px) 20px 14px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+.drawer-head .line1 { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.drawer-head h2 { font-size: 1.25rem; }
+.drawer-body { overflow-y: auto; padding: 18px 20px calc(env(safe-area-inset-bottom, 0px) + 32px); display: grid; gap: 22px; align-content: start; }
+.fields { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 8px 14px; margin: 0; }
+.fields dt { color: var(--ink-3); font-size: .8rem; font-weight: 600; padding-top: 1px; }
+.fields dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 480px) { .fields { grid-template-columns: minmax(0, 1fr); gap: 2px; } .fields dd { margin-bottom: 8px; } }
+.fields ul { margin: 0; padding-left: 18px; }
+.box { display: grid; gap: 10px; }
+.act { border: 1px solid var(--line); border-radius: var(--r); padding: 14px; display: grid; gap: 12px; background: var(--bg); }
+.act.you { border: 1.5px solid var(--you); background: var(--you-soft); }
+.act.warn { border-color: var(--warn); background: var(--warn-soft); }
+.act .big { font: 700 1.05rem/1.3 var(--f-display); }
+.check { display: flex; gap: 8px; align-items: center; font-weight: 600; cursor: pointer; }
+.check input { width: 18px; height: 18px; accent-color: var(--you); }
+.err { color: var(--crit); font-size: .84rem; font-weight: 600; }
+pre.consigne { white-space: pre-wrap; overflow-wrap: anywhere; font: .76rem/1.55 var(--f-mono); background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin: 0; max-height: 320px; overflow: auto; }
+.histo { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.histo li { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 10px; font-size: .84rem; }
+.histo time { font: .74rem var(--f-mono); color: var(--ink-3); padding-top: 2px; }
+details summary { cursor: pointer; font-weight: 600; color: var(--ink-2); }
+details[open] summary { margin-bottom: 10px; }
+
+.foot { margin-top: 40px; padding-top: 14px; border-top: 1px solid var(--line); max-width: 75ch; }
+.toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 18px); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-weight: 600; box-shadow: var(--shadow-lg); z-index: 40; width: max-content; max-width: calc(100vw - 32px); }
+.toast.err { background: var(--crit-soft); color: var(--crit); border: 1px solid var(--crit); }
+.outage { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: var(--scrim); }
+.outage div { background: var(--surface); border-radius: var(--r); padding: 20px 24px; box-shadow: var(--shadow-lg); max-width: calc(100vw - 32px); font-weight: 600; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .drawer { animation: slide .18s ease-out; }
+  .toast { animation: rise .18s ease-out; }
+  @keyframes slide { from { transform: translateX(24px); } to { transform: none; } }
+  @keyframes rise { from { transform: translate(-50%, 8px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <h1>Chef d'orchestre</h1>
+      <p>Citémétrie · coordination de Léo, Sami, Nora, Hugo, Rania, Adam et Lina</p>
+    </div>
+    <div class="top-actions" id="top-actions"></div>
+  </header>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Vues"></nav>
+  <main id="view"></main>
+  <footer class="foot small muted">Prototype autonome : aucune connexion aux mails, à Kotelo ni à l’ANAH. Les dossiers sont fictifs et tes manipulations restent dans ce navigateur.</footer>
+</div>
+<div id="drawer-root"></div>
+<div id="toast-root" role="status" aria-live="polite"></div>
+
+<script src="engine.js"></script>
+<script>
+(function () {
+  'use strict';
+  const E = window.Orchestrateur;
+  const KEY = 'citemetrie-orchestrateur-v1';
+
+  const TABS = [
+    ['jour', 'Aujourd’hui'], ['taches', 'Tâches'], ['dossiers', 'Dossiers'],
+    ['sessions', 'Sessions'], ['journal', 'Journal'], ['tests', 'Tests'],
+  ];
+  const GROUPES = {
+    toi:         { label: 'À toi de jouer',            court: 'pour toi',          statuts: ['a_verifier', 'attente_approbation', 'echec'], couleur: 'var(--you)' },
+    transmettre: { label: 'À transmettre',             court: 'à transmettre',     statuts: ['prete', 'approuvee'],                         couleur: 'var(--accent)' },
+    sessions:    { label: 'Chez les sessions',         court: 'chez les sessions', statuts: ['attente_exec', 'en_cours'],                   couleur: 'var(--ink-3)' },
+    bloquees:    { label: 'Bloquées',                  court: 'bloquées',          statuts: ['bloquee'],                                    couleur: 'var(--warn)' },
+    attente:     { label: 'Attendent une autre tâche', court: 'en attente',        statuts: ['a_planifier', 'a_analyser'],                  couleur: 'var(--line)' },
+    closes:      { label: 'Closes',                    court: 'closes',            statuts: ['verifiee'],                                   couleur: 'var(--ok)' },
+  };
+  const NATURES = {
+    decisions: { label: 'Tes décisions', liste: ['approbation', 'refus', 'transmission', 'déblocage', 'renvoi', 'réouverture'] },
+    controle:  { label: 'Vérifications et actions', liste: ['vérification', 'action', 'résultat', 'mémorisation'] },
+    doublons:  { label: 'Anti-doublons', liste: ['ignoré', 'regroupement', 'reprise'] },
+    props:     { label: 'Propositions', liste: ['proposition', 'blocage'] },
+  };
+  const TON_NATURE = { approbation: 'accent', refus: 'crit', action: 'ok', 'vérification': 'ok', 'ignoré': 'info', regroupement: 'info', reprise: 'info', blocage: 'warn', 'mémorisation': 'ok' };
+
+  // ---------- état ----------
+  let st = charger() || E.demo();
+  const ui = {
+    tab: lireOnglet(),
+    f: { dossier: '', session: '', priorite: '', statut: 'ouvertes', q: '' },
+    journal: '',
+    ouvert: null,
+    confirmReset: false,
+    tests: null,
+  };
+
+  function charger() {
+    try { const t = localStorage.getItem(KEY); return t ? E.deserialize(t) : null; } catch (e) { return null; }
+  }
+  function sauver() {
+    try { localStorage.setItem(KEY, E.serialize(st)); } catch (e) { /* stockage indisponible : la page marche sans */ }
+  }
+  function lireOnglet() {
+    const h = (location.hash || '').slice(1);
+    return TABS.some(t => t[0] === h) ? h : 'jour';
+  }
+
+  // ---------- outils ----------
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const fmt = iso => new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const plural = (n, un, plus) => n + ' ' + (n > 1 ? plus : un);
+  const groupeDe = t => Object.keys(GROUPES).find(k => GROUPES[k].statuts.includes(t.statut)) || 'attente';
+  const ordre = (a, b) => a.priorite - b.priorite || (a.echeance || '9999').localeCompare(b.echeance || '9999') || a.id.localeCompare(b.id);
+  const parGroupe = k => st.tasks.filter(t => groupeDe(t) === k).sort(ordre);
+  const nomSession = k => E.SESSIONS[k].nom;
+
+  function pill(t) {
+    const s = E.STATUTS[t.statut];
+    return '<span class="pill ' + s.ton + '">' + esc(s.label) + '</span>';
+  }
+  function av(k, lg) {
+    const s = E.SESSIONS[k];
+    return '<span class="av' + (lg ? ' lg' : '') + '" title="' + esc(s.nom + ', ' + s.role) + '" aria-hidden="true">' + esc(s.nom[0]) + '</span>';
+  }
+  function echeanceChip(t) {
+    if (!t.echeance || t.statut === 'verifiee') return '';
+    const fin = new Date(t.echeance + 'T23:59:59');
+    const j = Math.ceil((fin - new Date()) / 864e5);
+    const date = fin.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+    const txt = j < 0 ? 'dépassée' : 'J-' + j;
+    return '<span class="chip ' + (j <= 7 ? 'warn' : '') + '">Échéance ' + date + ' · ' + txt + '</span>';
+  }
+  function dpe(d) {
+    const [avant, apres] = d.dpe;
+    const b = c => c ? '<b class="dpe-' + c + '">' + c + '</b>' : '<b class="dpe-x">?</b>';
+    return '<span class="dpe" title="Étiquette DPE avant et après travaux">' + b(avant) + (d.parcours === 'Prospect' ? '' : '→' + b(apres)) + '</span>';
+  }
+  function cta(t) {
+    switch (t.statut) {
+      case 'a_verifier': return ['Vérifier', 'you'];
+      case 'attente_approbation': return ['Relire et décider', 'you'];
+      case 'echec': return ['Traiter', 'you'];
+      case 'prete': return ['Voir la consigne', 'primary'];
+      case 'approuvee': return ['Ordre d’exécution', 'primary'];
+      case 'attente_exec': case 'en_cours': return ['Saisir le retour', ''];
+      case 'bloquee': return ['Voir le blocage', ''];
+      default: return ['Détails', ''];
+    }
+  }
+  function row(t) {
+    const d = st.dossiers[t.dossier];
+    const s = E.SESSIONS[t.session];
+    const attend = t.statut === 'a_planifier' ? E.depsEnAttente(st, t) : [];
+    const [label, cls] = cta(t);
+    return '<div class="row">' + av(t.session) +
+      '<div class="main">' +
+        '<div class="line1"><span class="mono">' + esc(t.id) + '</span>' + pill(t) +
+          (t.priorite === 1 ? '<span class="chip crit">P1</span>' : '') + echeanceChip(t) + '</div>' +
+        '<div class="title">' + esc(t.titre) + '</div>' +
+        '<div class="meta"><span>' + esc(d.client) + ' · ' + esc(d.commune) + '</span><span>' + esc(s.nom) + ', ' + esc(s.role) + '</span>' +
+          (t.blocage ? '<span class="t-warn">' + esc(t.blocage) + '</span>' : '') +
+          (attend.length ? '<span>Attend ' + attend.map(esc).join(', ') + '</span>' : '') +
+        '</div>' +
+      '</div>' +
+      '<button class="btn ' + cls + '" data-open="' + esc(t.id) + '">' + esc(label) + '</button>' +
+    '</div>';
+  }
+  const liste = (tasks, vide) => tasks.length ? '<div class="list">' + tasks.map(row).join('') + '</div>' : '<div class="empty">' + esc(vide) + '</div>';
+
+  // ---------- en-tête et onglets ----------
+  function renderTop() {
+    const actions = ui.confirmReset
+      ? '<div class="confirm-inline"><span>Effacer tes manipulations et revenir aux données de départ ?</span>' +
+        '<button class="btn" data-reset="oui">Oui, réinitialiser</button><button class="btn quiet" data-reset="non">Annuler</button></div>'
+      : '<span class="proto">Prototype · données fictives</span><button class="btn" data-reset="demander">Réinitialiser la démo</button>';
+    document.getElementById('top-actions').innerHTML = actions;
+    const nToi = parGroupe('toi').length;
+    document.getElementById('tabs').innerHTML = TABS.map(([k, l]) =>
+      '<button class="tab" role="tab" data-tab="' + k + '" aria-selected="' + (ui.tab === k) + '">' + esc(l) +
+      (k === 'jour' && nToi ? '<span class="badge" title="' + nToi + ' éléments attendent ta décision">' + nToi + '</span>' : '') + '</button>'
+    ).join('');
+  }
+
+  // ---------- vue Aujourd'hui ----------
+  function vueJour() {
+    const toi = parGroupe('toi'), tr = parGroupe('transmettre'), se = parGroupe('sessions');
+    const bl = parGroupe('bloquees'), at = parGroupe('attente');
+    const nApprob = toi.filter(t => t.statut === 'attente_approbation').length;
+    const nVerif = toi.filter(t => t.statut === 'a_verifier').length;
+    const nEchec = toi.length - nApprob - nVerif;
+    const counters =
+      '<div class="counters">' +
+        counter('you', toi.length, 'À toi de jouer', plural(nApprob, 'approbation', 'approbations') + ', ' + plural(nVerif, 'résultat', 'résultats') + ' à vérifier' + (nEchec ? ', ' + plural(nEchec, 'intervention', 'interventions') : ''), 'g:toi') +
+        counter('acc', tr.length, 'À transmettre', 'Consignes et ordres d’exécution prêts', 'g:transmettre') +
+        counter('', se.length, 'Chez les sessions', 'Compte rendu attendu', 'g:sessions') +
+        counter('warn', bl.length, 'Bloquées', at.length + ' autres attendent une tâche amont', 'g:bloquees') +
+      '</div>';
+
+    // Tâches à transmettre, regroupées par session : un lot = un copier-coller dans la session.
+    const parSession = {};
+    tr.forEach(t => (parSession[t.session] = parSession[t.session] || []).push(t));
+    const lots = Object.keys(E.SESSIONS).filter(k => parSession[k]).map(k => {
+      const ts = parSession[k];
+      const nPretes = ts.filter(t => t.statut === 'prete').length;
+      return '<div class="group"><div class="group-head"><div class="who">' + av(k) + '<div><h3>' + esc(nomSession(k)) + '</h3><div class="small muted">' + esc(E.SESSIONS[k].role) + '</div></div></div>' +
+        '<div class="btns"><button class="btn" data-copy-lot="' + k + '">Copier ' + (ts.length > 1 ? 'les ' + ts.length + ' consignes' : 'la consigne') + '</button>' +
+        (nPretes ? '<button class="btn primary" data-mark-lot="' + k + '">Marquer ' + (nPretes > 1 ? 'les ' + nPretes + ' comme transmises' : 'comme transmise') + '</button>' : '') +
+        '</div></div>' + ts.map(row).join('') + '</div>';
+    }).join('');
+
+    return counters +
+      '<div class="cols"><div class="stack">' +
+        section('À toi de jouer', 'Résultats à contrôler et actions sensibles qui attendent ton feu vert. Rien ne part sans ton approbation.', liste(toi, 'Rien n’attend ta décision pour l’instant.')) +
+        section('À transmettre, par session', 'Copie le lot dans la session concernée, puis marque-le comme transmis. Transmis ne veut pas dire fait : la tâche reste ouverte jusqu’à la preuve.', lots || '<div class="empty">Aucune consigne en attente de transmission.</div>') +
+        section('Chez les sessions', 'Consignes transmises dont on attend le compte rendu.', liste(se, 'Aucune session n’a de travail en cours.')) +
+        section('Bloquées ou en attente', 'Un blocage ne gèle que l’étape concernée. Le reste du dossier continue.', liste(bl.concat(at), 'Aucun blocage.')) +
+      '</div><aside class="stack">' + panneauSim() + panneauSessions() + '</aside></div>';
+  }
+  function counter(cls, n, l, d, filtre) {
+    return '<button class="counter ' + cls + '" data-goto="' + filtre + '"><span class="n">' + n + '</span><span class="l">' + esc(l) + '</span><span class="d">' + esc(d) + '</span></button>';
+  }
+  function section(titre, intro, corps) {
+    return '<section class="section"><div class="section-head"><h2>' + esc(titre) + '</h2>' + (intro ? '<p class="small muted">' + esc(intro) + '</p>' : '') + '</div>' + corps + '</section>';
+  }
+
+  const SIMS = [
+    ['email_suivi', 'Nouvel email Ferrand', 'Même conversation que le brouillon qui attend ton approbation'],
+    ['email_nouveau', 'Email Lambert, nouvelle conversation', 'Question sur la pompe à chaleur, avec une photo'],
+    ['relancer', 'Relancer l’analyse des emails', 'Relit tous les emails déjà vus, rien ne doit être recréé'],
+    ['devis', 'Devis reçu pour Mme Belkacem', 'Isolation par l’extérieur et menuiseries'],
+    ['accord', 'Accord ANAH pour M. Roux', '41 250 € accordés, débloque CD83 et TPM'],
+    ['pieces', 'Demande de pièces ANAH Ferrand', 'Une pièce déjà reçue, une manquante'],
+    ['prospect', 'Entretien prospect Mme Garcia', 'Le Pradet, appartement 1965'],
+    ['coupure', 'Simuler une coupure', 'L’état est rechargé depuis la sauvegarde'],
+  ];
+  function panneauSim() {
+    return '<section class="panel"><div class="section-head"><h2>Simulateur</h2><p class="small muted">Fais arriver des événements comme s’ils venaient des mails, de l’ANAH ou des entretiens. Clique deux fois sur le même bouton pour voir l’anti-doublon.</p></div>' +
+      '<div class="sim">' + SIMS.map(([k, t, d]) => '<button class="sim-btn' + (k === 'coupure' ? ' danger' : '') + '" data-sim="' + k + '"><strong>' + esc(t) + '</strong><span>' + esc(d) + '</span></button>').join('') + '</div></section>';
+  }
+  function etatSession(k) {
+    const ts = st.tasks.filter(t => t.session === k);
+    const n = s => ts.filter(t => s.includes(t.statut)).length;
+    return {
+      transmettre: n(['prete', 'approuvee']), chez: n(['attente_exec', 'en_cours']), verifier: n(['a_verifier']),
+      approbation: n(['attente_approbation']), bloquees: n(['bloquee']), attente: n(['a_planifier']), closes: n(['verifiee']),
+    };
+  }
+  function resumeSession(e) {
+    const parts = [];
+    if (e.verifier + e.approbation) parts.push((e.verifier + e.approbation) + ' pour toi');
+    if (e.transmettre) parts.push(e.transmettre + ' à transmettre');
+    if (e.chez) parts.push(e.chez + ' en cours');
+    if (e.bloquees) parts.push(e.bloquees + ' bloquée' + (e.bloquees > 1 ? 's' : ''));
+    return parts.join(' · ') || 'Rien en cours';
+  }
+  function panneauSessions() {
+    return '<section class="panel sessions-mini"><div class="section-head"><h2>Les 7 sessions</h2></div><div class="mini">' +
+      Object.keys(E.SESSIONS).map(k => '<button data-goto="s:' + k + '">' + av(k) + '<span><strong>' + esc(nomSession(k)) + '</strong> <span class="small muted">' + esc(E.SESSIONS[k].role) + '</span></span><span class="r">' + esc(resumeSession(etatSession(k))) + '</span></button>').join('') +
+      '</div></section>';
+  }
+
+  // ---------- vue Tâches ----------
+  function vueTaches() {
+    const f = ui.f;
+    let ts = st.tasks.slice();
+    if (f.dossier) ts = ts.filter(t => t.dossier === f.dossier);
+    if (f.session) ts = ts.filter(t => t.session === f.session);
+    if (f.priorite) ts = ts.filter(t => String(t.priorite) === f.priorite);
+    if (f.statut === 'ouvertes') ts = ts.filter(t => t.statut !== 'verifiee');
+    else if (f.statut.indexOf('g:') === 0) ts = ts.filter(t => groupeDe(t) === f.statut.slice(2));
+    else if (f.statut.indexOf('s:') === 0) ts = ts.filter(t => t.statut === f.statut.slice(2));
+    if (f.q.trim()) {
+      const q = f.q.trim().toLowerCase();
+      ts = ts.filter(t => (t.id + ' ' + t.titre + ' ' + st.dossiers[t.dossier].client + ' ' + t.motif).toLowerCase().indexOf(q) >= 0);
+    }
+    ts.sort(ordre);
+    const opt = (v, l, cur) => '<option value="' + esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(l) + '</option>';
+    const filtres =
+      '<div class="filters">' +
+        '<div class="field"><label for="f-q">Recherche</label><input id="f-q" type="search" placeholder="Client, ID, tâche…" value="' + esc(f.q) + '" data-f="q"></div>' +
+        '<div class="field"><label for="f-dossier">Client ou dossier</label><select id="f-dossier" data-f="dossier">' + opt('', 'Tous', f.dossier) +
+          Object.values(st.dossiers).map(d => opt(d.id, d.client + ' · ' + d.id, f.dossier)).join('') + '</select></div>' +
+        '<div class="field"><label for="f-session">Session</label><select id="f-session" data-f="session">' + opt('', 'Toutes', f.session) +
+          Object.keys(E.SESSIONS).map(k => opt(k, nomSession(k) + ' · ' + E.SESSIONS[k].role, f.session)).join('') + '</select></div>' +
+        '<div class="field"><label for="f-priorite">Priorité</label><select id="f-priorite" data-f="priorite">' + opt('', 'Toutes', f.priorite) + opt('1', 'P1 urgente', f.priorite) + opt('2', 'P2 normale', f.priorite) + opt('3', 'P3 basse', f.priorite) + '</select></div>' +
+        '<div class="field"><label for="f-statut">Statut</label><select id="f-statut" data-f="statut">' + opt('ouvertes', 'Ouvertes', f.statut) + opt('toutes', 'Toutes', f.statut) +
+          '<optgroup label="Groupes">' + Object.keys(GROUPES).map(k => opt('g:' + k, GROUPES[k].label, f.statut)).join('') + '</optgroup>' +
+          '<optgroup label="Statuts">' + Object.keys(E.STATUTS).map(k => opt('s:' + k, E.STATUTS[k].label, f.statut)).join('') + '</optgroup></select></div>' +
+        '<button class="btn quiet" data-clear-filters>Effacer</button>' +
+      '</div>';
+    const lignes = ts.map(t => {
+      const d = st.dossiers[t.dossier];
+      const deps = t.deps.length ? t.deps.map(id => '<span class="mono">' + esc(id) + '</span>').join('<br>') : '<span class="sub">Aucune</span>';
+      return '<tr data-open="' + esc(t.id) + '">' +
+        '<td><div class="mono">' + esc(t.id) + '</div><div>' + esc(t.titre) + '</div></td>' +
+        '<td><div>' + esc(d.client) + '</div><div class="sub mono">' + esc(d.id) + '</div></td>' +
+        '<td><div style="display:flex;gap:8px;align-items:center">' + av(t.session) + esc(nomSession(t.session)) + '</div></td>' +
+        '<td class="num">P' + t.priorite + (t.echeance ? '<div class="sub">' + esc(new Date(t.echeance).toLocaleDateString('fr-FR')) + '</div>' : '') + '</td>' +
+        '<td>' + pill(t) + (t.validation !== 'aucune' ? '<div class="sub">Approbation : ' + esc(E.VALIDATIONS[t.validation]) + '</div>' : '') + '</td>' +
+        '<td>' + deps + '</td>' +
+        '<td class="sub num">' + esc(fmt(t.maj)) + '</td>' +
+      '</tr>';
+    }).join('');
+    return section('Toutes les tâches', plural(ts.length, 'tâche affichée', 'tâches affichées') + ' sur ' + st.tasks.length + '. Clique une ligne pour ouvrir le détail.', filtres +
+      (ts.length ? '<div class="table-wrap"><table><thead><tr><th>Tâche</th><th>Dossier</th><th>Session</th><th>Priorité</th><th>Statut</th><th>Dépend de</th><th>Mise à jour</th></tr></thead><tbody>' + lignes + '</tbody></table></div>'
+        : '<div class="empty">Aucune tâche ne correspond à ces filtres.</div>'));
+  }
+
+  // ---------- vue Dossiers ----------
+  function vueDossiers() {
+    const cartes = Object.values(st.dossiers).map(d => {
+      const ts = st.tasks.filter(t => t.dossier === d.id);
+      const g = {};
+      ts.forEach(t => { const k = groupeDe(t); g[k] = (g[k] || 0) + 1; });
+      const ouvertes = ts.filter(t => t.statut !== 'verifiee').sort(ordre);
+      const flags = [];
+      if (g.toi) flags.push('<span class="pill accent">' + g.toi + ' pour toi</span>');
+      if (g.bloquees) flags.push('<span class="pill warn">Bloqué en partie</span>');
+      if (!ouvertes.length) flags.push('<span class="pill ok">Rien à faire</span>');
+      const bar = ts.length ? '<div class="bar" role="img" aria-label="Répartition des tâches">' +
+        ['closes', 'sessions', 'transmettre', 'toi', 'bloquees', 'attente'].filter(k => g[k]).map(k => '<span style="width:' + (100 * g[k] / ts.length) + '%;background:' + GROUPES[k].couleur + '"></span>').join('') + '</div>' +
+        '<div class="legend">' + ['closes', 'sessions', 'transmettre', 'toi', 'bloquees', 'attente'].filter(k => g[k]).map(k => '<span><i style="background:' + GROUPES[k].couleur + '"></i>' + g[k] + ' ' + esc(GROUPES[k].court) + '</span>').join('') + '</div>' : '';
+      return '<article class="card"><div class="card-head"><div><h3>' + esc(d.client) + '</h3><div class="small muted">' + esc(d.commune) + ' · <span class="mono">' + esc(d.id) + '</span></div></div>' + dpe(d) + '</div>' +
+        '<div class="small"><strong>' + esc(d.etape) + '</strong> · <span class="muted">' + esc(d.parcours) + '</span></div>' +
+        (flags.length ? '<div class="flags">' + flags.join('') + '</div>' : '') + bar +
+        (ouvertes.length ? '<ul class="tasklets">' + ouvertes.slice(0, 5).map(t => '<li><button data-open="' + esc(t.id) + '">' + esc(nomSession(t.session)) + ' · ' + esc(t.titre) + '</button>' + pill(t) + '</li>').join('') + '</ul>' : '<p class="small muted">Aucune tâche ouverte sur ce dossier.</p>') +
+        '<div class="btns"><button class="btn" data-goto="d:' + esc(d.id) + '">Voir les ' + ts.length + ' tâches</button></div></article>';
+    }).join('');
+    return section('Dossiers', 'Vue par propriétaire. L’étiquette indique la classe DPE avant et après travaux.', '<div class="cards">' + cartes + '</div>');
+  }
+
+  // ---------- vue Sessions ----------
+  const REGLES = [
+    ['Email d’un propriétaire', [['leo', 'prépare la réponse'], ['sami', 'un seul événement Kotelo par conversation']], 'Un email de plus dans la conversation est regroupé. S’il arrive après le brouillon, celui-ci est à refaire et l’approbation tombe.'],
+    ['Devis reçu', [['nora', 'contrôle devis et RGE'], ['hugo', 'revoit le plan si anomalie']], 'Hugo n’intervient que si Nora a relevé une anomalie vérifiée.'],
+    ['Accord ANAH', [['rania', 'vérifie le montant'], ['sami', 'étape Kotelo'], ['adam', 'CD83 et TPM']], 'Adam attend que l’accord soit vérifié. Chaque dépôt demande sa propre approbation.'],
+    ['Demande de pièces ANAH', [['leo', 'écrit au propriétaire'], ['rania', 'rassemble puis répond']], 'Seule la réponse ANAH attend la pièce manquante. Le reste du dossier avance.'],
+    ['Entretien prospect', [['lina', 'cherche un doublon'], ['lina', 'crée le prospect']], 'Un doublon trouvé bloque la création. C’est toi qui tranches.'],
+  ];
+  function vueSessions() {
+    const cartes = Object.keys(E.SESSIONS).map(k => {
+      const s = E.SESSIONS[k], e = etatSession(k);
+      const dernier = st.journal.slice().reverse().find(j => j.ref && st.tasks.some(t => t.id === j.ref && t.session === k));
+      const lot = e.transmettre;
+      return '<article class="card"><div class="card-head"><div style="display:flex;gap:12px;align-items:center">' + av(k, true) + '<div><h3>' + esc(s.nom) + '</h3><div class="small muted">' + esc(s.role) + '</div></div></div></div>' +
+        '<dl class="stats">' +
+          stat('À transmettre', e.transmettre) + stat('Chez ' + s.nom, e.chez) + stat('À vérifier', e.verifier) + stat('À approuver', e.approbation) +
+          stat('Bloquées', e.bloquees) + stat('Closes', e.closes) +
+        '</dl>' +
+        '<p class="small muted">' + (dernier ? 'Dernière activité ' + esc(fmt(dernier.at)) + ' : ' + esc(dernier.message) : 'Pas encore d’activité.') + '</p>' +
+        '<div class="btns">' + (lot ? '<button class="btn primary" data-copy-lot="' + k + '">Copier ' + (lot > 1 ? 'les ' + lot + ' consignes' : 'la consigne') + '</button>' : '') +
+        '<button class="btn" data-goto="s:' + k + '">Voir ses tâches</button></div></article>';
+    }).join('');
+    const regles = '<div class="rules"><div class="rule"><div>Déclencheur</div><div>Ce que propose l’orchestrateur</div><div>Garde-fou</div></div>' +
+      REGLES.map(([dec, flux, garde]) => '<div class="rule"><div><strong>' + esc(dec) + '</strong></div><div class="flow">' +
+        flux.map(([k, quoi], i) => (i ? '<span class="arrow">→</span>' : '') + '<span style="display:inline-flex;gap:6px;align-items:center">' + av(k) + '<span><strong>' + esc(nomSession(k)) + '</strong> <span class="muted">' + esc(quoi) + '</span></span></span>').join('') +
+        '</div><div class="small muted">' + esc(garde) + '</div></div>').join('') + '</div>';
+    return '<div class="stack">' + section('État des sessions', 'Chaque session garde ses instructions actuelles. L’orchestrateur prépare ses consignes et lit ses comptes rendus.', '<div class="cards">' + cartes + '</div>') +
+      section('Règles de coordination', 'Tirées de ta description. À confirmer avec les instructions réelles des sessions quand ton Mac sera accessible.', regles) + '</div>';
+  }
+  const stat = (l, n) => '<div><dt>' + esc(l) + '</dt><dd>' + n + '</dd></div>';
+
+  // ---------- vue Journal ----------
+  function vueJournal() {
+    const filtre = ui.journal && NATURES[ui.journal] ? NATURES[ui.journal].liste : null;
+    const lignes = st.journal.slice().reverse().filter(j => !filtre || filtre.includes(j.nature)).map(j =>
+      '<div class="log-row"><span class="when">' + esc(fmt(j.at)) + '</span><span><span class="pill ' + (TON_NATURE[j.nature] || '') + '">' + esc(j.nature) + '</span></span>' +
+      '<div class="msg"><strong>' + esc(j.acteur) + '</strong> · ' + esc(j.message) + (j.ref ? ' · <button class="linklike mono" data-open="' + esc(j.ref) + '">' + esc(j.ref) + '</button>' : '') + '</div></div>'
+    );
+    const sel = '<div class="filters"><div class="field" style="max-width:320px"><label for="f-journal">Afficher</label><select id="f-journal" data-journal>' +
+      '<option value="">Toutes les entrées</option>' + Object.keys(NATURES).map(k => '<option value="' + k + '"' + (ui.journal === k ? ' selected' : '') + '>' + esc(NATURES[k].label) + '</option>').join('') + '</select></div></div>';
+    return section('Journal', 'Ce qui a été proposé, décidé, vérifié et réellement exécuté, dans l’ordre inverse.', sel +
+      (lignes.length ? '<div class="log">' + lignes.join('') + '</div>' : '<div class="empty">Aucune entrée pour ce filtre.</div>'));
+  }
+
+  // ---------- vue Tests ----------
+  function vueTests() {
+    if (!ui.tests) ui.tests = { res: E.selfTest(), at: new Date() };
+    const ok = ui.tests.res.filter(r => r.ok).length;
+    const icone = r => r.ok
+      ? '<span class="mark ok" aria-label="Réussi"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5l2.5 2.5L10 3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>'
+      : '<span class="mark ko" aria-label="Échec"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 3l6 6M9 3l-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>';
+    return section('Tests du moteur', ok + ' sur ' + ui.tests.res.length + ' réussis, lancés à ' + ui.tests.at.toLocaleTimeString('fr-FR') + ' dans ce navigateur, sur le même moteur que la page.',
+      '<div class="btns"><button class="btn" data-rerun-tests>Relancer les tests</button></div>' +
+      '<div class="log">' + ui.tests.res.map(r => '<div class="test-row">' + icone(r) + '<div><strong>' + esc(r.nom) + '</strong><div class="small muted">' + esc(r.detail) + '</div></div></div>').join('') + '</div>');
+  }
+
+  // ---------- tiroir de détail ----------
+  const EXEMPLE_PREUVE = {
+    leo: 'Brouillon visible dans Mail > Brouillons, pièces classées dans le dossier',
+    sami: 'Capture du formulaire Kotelo pré-rempli, non enregistré',
+    nora: 'Rapport de contrôle dans {d}/Technique/controle-devis.md',
+    hugo: 'Plan recalculé dans {d}/Financement/plan-v4.xlsx',
+    rania: 'Pièces et courrier rangés dans {d}/ANAH/',
+    adam: 'Dossier complet dans {d}/Aides/, pièces listées',
+    lina: 'Capture de la recherche Kotelo par nom, adresse et téléphone',
+  };
+  const EXEMPLE_EXEC = {
+    email: 'Email envoyé le 13/10 à 9 h 12, visible dans Envoyés',
+    kotelo: 'EVT-9034 créé dans Kotelo le 13/10',
+    anah: 'Accusé de dépôt ANAH n° 2026-118 452',
+    cd83: 'Récépissé CD83 n° 83-2026-0412',
+    tpm: 'Dépôt Dokidocs n° TPM-2026-1187, ligne EPCI mise à jour',
+    financier: 'Plan v4 validé, envoyé au propriétaire le 13/10',
+    documents: 'Fichiers déplacés, copie conservée dans _sauvegardes/',
+  };
+  function renderDrawer() {
+    const root = document.getElementById('drawer-root');
+    if (!ui.ouvert) { root.innerHTML = ''; return; }
+    let t;
+    try { t = E.getTask(st, ui.ouvert); } catch (e) { ui.ouvert = null; root.innerHTML = ''; return; }
+    const d = st.dossiers[t.dossier];
+    const s = E.SESSIONS[t.session];
+    const debloque = st.tasks.filter(x => x.deps.includes(t.id));
+    const depLien = id => { const x = E.getTask(st, id); return '<div><button class="linklike mono" data-open="' + esc(id) + '">' + esc(id) + '</button> ' + pill(x) + ' <span class="small muted">' + esc(nomSession(x.session)) + ' · ' + esc(x.titre) + '</span></div>'; };
+    const champs =
+      '<dl class="fields">' +
+        '<dt>Dossier</dt><dd>' + esc(d.client) + ' · ' + esc(d.commune) + ' · <span class="mono">' + esc(d.id) + '</span></dd>' +
+        '<dt>Session</dt><dd>' + esc(s.nom) + ', ' + esc(s.role) + '</dd>' +
+        '<dt>Pourquoi</dt><dd>' + esc(t.motif) + '</dd>' +
+        '<dt>Priorité</dt><dd>P' + t.priorite + (t.echeance ? ' · ' + echeanceChip(t) : '') + '</dd>' +
+        '<dt>Dépend de</dt><dd>' + (t.deps.length ? t.deps.map(depLien).join('') : 'Aucune tâche') + '</dd>' +
+        (debloque.length ? '<dt>Débloque</dt><dd>' + debloque.map(x => depLien(x.id)).join('') + '</dd>' : '') +
+        '<dt>Entrées</dt><dd><ul>' + t.entrees.map(e => '<li>' + esc(e) + '</li>').join('') + '</ul></dd>' +
+        '<dt>Résultat attendu</dt><dd>' + esc(t.attendu) + '</dd>' +
+        '<dt>Validation</dt><dd>' + (t.validation === 'aucune' ? 'Aucune action sensible' : '<strong>' + esc(E.VALIDATIONS[t.validation]) + '</strong>, approbation explicite requise') + '</dd>' +
+        (t.resultat ? '<dt>Compte rendu</dt><dd>' + esc(t.resultat) + '</dd>' : '') +
+        (t.anomalies.length ? '<dt>Anomalies</dt><dd class="t-warn">' + t.anomalies.map(esc).join('<br>') + '</dd>' : '') +
+        (t.preuve ? '<dt>Preuve</dt><dd>' + esc(t.preuve) + '</dd>' : '') +
+        '<dt>Clé anti-doublon</dt><dd class="mono">' + esc(t.cle) + '</dd>' +
+      '</dl>';
+    const consigne = !E.TERMINAUX.includes(t.statut) && !['a_planifier', 'bloquee'].includes(t.statut)
+      ? '<div class="box"><div class="section-head"><h3>' + (t.statut === 'approuvee' ? 'Ordre d’exécution' : 'Consigne pour ' + esc(s.nom)) + '</h3><button class="btn" data-copy="' + esc(t.id) + '">Copier</button></div><pre class="consigne" id="consigne-txt">' + esc(E.consigne(st, t.id)) + '</pre></div>'
+      : '';
+    const blocForm = !E.TERMINAUX.includes(t.statut) && t.statut !== 'bloquee'
+      ? '<details><summary>Signaler un blocage</summary><div class="box"><div class="field"><label for="f-cause">Cause du blocage</label><input id="f-cause" type="text" placeholder="ex. En attente du propriétaire"></div><div class="btns"><button class="btn" data-do="bloquer">Bloquer cette tâche</button></div></div></details>'
+      : '';
+    root.innerHTML =
+      '<div class="scrim" data-close></div>' +
+      '<aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title">' +
+        '<div class="drawer-head"><div class="line1"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="mono">' + esc(t.id) + '</span>' + pill(t) + (t.priorite === 1 ? '<span class="chip crit">P1</span>' : '') + '</div>' +
+        '<button class="btn quiet" data-close aria-label="Fermer le détail">Fermer</button></div>' +
+        '<h2 id="drawer-title">' + esc(t.titre) + '</h2></div>' +
+        '<div class="drawer-body">' + actions(t) + '<div id="drawer-err" class="err" hidden></div>' + consigne + champs + blocForm +
+          '<div class="box"><h3>Historique</h3><ul class="histo">' + t.historique.map(h => '<li><time>' + esc(fmt(h.at)) + '</time><span>' + esc(h.texte) + '</span></li>').join('') + '</ul></div>' +
+        '</div>' +
+      '</aside>';
+  }
+
+  function actions(t) {
+    const s = E.SESSIONS[t.session];
+    const d = st.dossiers[t.dossier];
+    switch (t.statut) {
+      case 'prete':
+        return '<div class="act"><p>Copie la consigne ci-dessous dans la session <strong>' + esc(s.nom) + '</strong>, puis marque-la comme transmise. La tâche restera ouverte jusqu’au compte rendu et à sa preuve.</p>' +
+          '<div class="btns"><button class="btn" data-copy="' + esc(t.id) + '">Copier la consigne</button><button class="btn primary" data-do="transmettre">Marquer comme transmise</button></div></div>';
+      case 'attente_exec':
+      case 'en_cours':
+        return '<div class="act"><p>Quand ' + esc(s.nom) + ' a rendu son compte rendu, recopie-le ici. Plus tard, l’orchestrateur le lira directement dans <span class="mono">_orchestration/retours/' + esc(t.id) + '.md</span>.</p>' +
+          '<div class="field"><label for="f-res">Compte rendu de ' + esc(s.nom) + '</label><textarea id="f-res">' + esc('Fait. ' + t.attendu + '.') + '</textarea></div>' +
+          '<div class="field"><label for="f-ano">Anomalie relevée <span class="muted small">facultatif</span></label><input id="f-ano" type="text" placeholder="ex. Certificat RGE expiré"></div>' +
+          '<div class="btns">' + (t.statut === 'attente_exec' ? '<button class="btn" data-do="demarrer">' + esc(s.nom) + ' a commencé</button>' : '') + '<button class="btn primary" data-do="resultat">Enregistrer le compte rendu</button></div></div>';
+      case 'a_verifier':
+        return '<div class="act you"><div class="eyebrow">Résultat à vérifier</div><p>' + esc(t.resultat) + '</p>' +
+          (t.anomalies.length ? '<p class="t-warn">Anomalie : ' + t.anomalies.map(esc).join(' · ') + '</p>' : '') +
+          '<div class="field"><div class="lab"><label for="f-preuve">Preuve observable</label><button class="linklike small" data-example="preuve">Remplir un exemple</button></div><input id="f-preuve" type="text" placeholder="Chemin du fichier, ID Kotelo, n° de dépôt…"></div>' +
+          '<p class="small muted">Sans preuve, la tâche reste ouverte.' + (t.validation !== 'aucune' ? ' Ensuite, ' + esc(E.VALIDATIONS[t.validation].toLowerCase()) + ' attendra ton approbation.' : '') + '</p>' +
+          '<div class="btns"><button class="btn you" data-do="verifier">Valider avec cette preuve</button><button class="btn" data-do="renvoyer">Renvoyer à ' + esc(s.nom) + '</button></div></div>';
+      case 'attente_approbation':
+        return '<div class="act you"><div class="eyebrow">Ce que tu approuves</div><p class="big">' + esc(E.VALIDATIONS[t.validation]) + '</p>' +
+          '<dl class="fields"><dt>Action</dt><dd>' + esc(t.titre) + '</dd><dt>Pour</dt><dd>' + esc(d.client) + ' · ' + esc(d.id) + '</dd><dt>Préparé par</dt><dd>' + esc(s.nom) + '</dd>' +
+          '<dt>Compte rendu</dt><dd>' + esc(t.resultat) + '</dd><dt>Préparation vérifiée</dt><dd>' + esc(t.preuve) + '</dd></dl>' +
+          '<p class="small">Cette approbation vaut pour cette seule action. Elle ne couvre aucune autre tâche, même sur ce dossier.</p>' +
+          '<label class="check"><input type="checkbox" id="f-relu"> J’ai relu ce récapitulatif</label>' +
+          '<div class="btns"><button class="btn you" data-do="approuver" id="btn-approuver" disabled>Approuver cette action</button></div></div>' +
+          '<details><summary>Refuser</summary><div class="box"><div class="field"><label for="f-motif">Motif du refus</label><input id="f-motif" type="text" placeholder="ex. Le montant cité dans le mail est faux"></div><div class="btns"><button class="btn" data-do="refuser">Refuser cette action</button></div></div></details>';
+      case 'approuvee':
+        return '<div class="act"><p>Approuvée. Copie l’ordre d’exécution dans la session <strong>' + esc(s.nom) + '</strong>. Quand c’est fait, colle la preuve de l’exécution : la tâche ne sera close qu’à ce moment.</p>' +
+          '<div class="btns"><button class="btn" data-copy="' + esc(t.id) + '">Copier l’ordre d’exécution</button></div>' +
+          '<div class="field"><div class="lab"><label for="f-exec">Preuve d’exécution</label><button class="linklike small" data-example="exec">Remplir un exemple</button></div><input id="f-exec" type="text" placeholder="' + esc('ex. ' + EXEMPLE_EXEC[t.validation]) + '"></div>' +
+          '<div class="btns"><button class="btn primary" data-do="executer">Confirmer l’exécution</button></div></div>';
+      case 'bloquee':
+        return '<div class="act warn"><div class="eyebrow">Bloquée</div><p><strong>' + esc(t.blocage) + '</strong></p><p class="small">Les autres tâches du dossier continuent. Débloque quand la cause est levée.</p><div class="btns"><button class="btn" data-do="debloquer">Débloquer</button></div></div>';
+      case 'a_planifier':
+        return '<div class="act"><p>Cette tâche attend que ces tâches soient vérifiées : ' + E.depsEnAttente(st, t).map(id => '<button class="linklike mono" data-open="' + esc(id) + '">' + esc(id) + '</button>').join(', ') + '. Elle passera seule en « Prête à transmettre ».</p></div>';
+      case 'echec':
+        return '<div class="act warn"><div class="eyebrow">Intervention requise</div><p>' + t.anomalies.map(esc).join('<br>') + '</p><div class="btns"><button class="btn" data-do="rouvrir">Remettre à planifier</button></div></div>';
+      case 'verifiee':
+        return '<div class="act"><div class="eyebrow">Close</div><p>Exécutée et vérifiée. Preuve : ' + esc(t.preuve) + '</p></div>';
+      default:
+        return '';
+    }
+  }
+
+  // ---------- rendu ----------
+  function render() {
+    // Garde le focus et le curseur d'un champ à travers le rendu.
+    const a = document.activeElement;
+    const focusId = a && a.id ? a.id : null;
+    const sel = a && typeof a.selectionStart === 'number' ? [a.selectionStart, a.selectionEnd] : null;
+    renderTop();
+    const vues = { jour: vueJour, taches: vueTaches, dossiers: vueDossiers, sessions: vueSessions, journal: vueJournal, tests: vueTests };
+    document.getElementById('view').innerHTML = vues[ui.tab]();
+    renderDrawer();
+    if (focusId) {
+      const el = document.getElementById(focusId);
+      if (el) { el.focus(); if (sel && el.setSelectionRange) try { el.setSelectionRange(sel[0], sel[1]); } catch (e) { /* type sans curseur */ } }
+    }
+  }
+
+  let toastTimer = null;
+  function toast(msg, err) {
+    const root = document.getElementById('toast-root');
+    root.innerHTML = '<div class="toast' + (err ? ' err' : '') + '">' + esc(msg) + '</div>';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { root.innerHTML = ''; }, err ? 5200 : 3600);
+  }
+  function erreurTiroir(msg) {
+    const el = document.getElementById('drawer-err');
+    if (el) { el.textContent = msg; el.hidden = false; } else toast(msg, true);
+  }
+
+  // Exécute une action sur l'état, sauvegarde et redessine. Les erreurs du moteur restent visibles.
+  function agir(fn, okMsg) {
+    try {
+      const r = fn();
+      sauver();
+      ui.tests = null;
+      render();
+      if (okMsg) toast(typeof okMsg === 'function' ? okMsg(r) : okMsg);
+    } catch (e) {
+      if (ui.ouvert) erreurTiroir(e.message); else toast(e.message, true);
+    }
+  }
+
+  async function copier(texte) {
+    try {
+      await navigator.clipboard.writeText(texte);
+      toast('Copié. Colle-le dans la session concernée.');
+    } catch (e) {
+      const pre = document.getElementById('consigne-txt');
+      if (pre) {
+        const r = document.createRange(); r.selectNodeContents(pre);
+        const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+        toast('Copie bloquée par le navigateur : le texte est sélectionné, copie-le à la main.', true);
+      } else {
+        toast('Copie bloquée par le navigateur. Ouvre une tâche pour sélectionner sa consigne.', true);
+      }
+    }
+  }
+  function lotSession(k) {
+    const ts = st.tasks.filter(t => t.session === k && ['prete', 'approuvee'].includes(t.statut)).sort(ordre);
+    return 'LOT DE CONSIGNES POUR ' + nomSession(k).toUpperCase() + ' · ' + plural(ts.length, 'tâche', 'tâches') + ' · ' + new Date().toLocaleString('fr-FR') +
+      '\nTraite-les dans l’ordre. Une tâche déjà faite ne se refait pas : signale-le dans son compte rendu.\n\n' +
+      ts.map(t => E.consigne(st, t.id)).join('\n\n----------\n\n');
+  }
+
+  // ---------- simulateur ----------
+  function assurerDossier(d) {
+    if (!st.dossiers[d.id]) E.addDossier(st, d);
+  }
+  function resumeIngest(r) {
+    if (r.doublon) return 'Déjà traité : aucune tâche recréée.';
+    if (!r.crees.length) return 'Aucune nouvelle tâche : regroupé avec l’existant.';
+    return plural(r.crees.length, 'tâche créée', 'tâches créées') + ' : ' + r.crees.join(', ');
+  }
+  const SIM_ACTIONS = {
+    email_suivi() {
+      st.sim = st.sim || { n: 0 };
+      st.sim.n += 1;
+      return E.ingest(st, { id: 'msg-' + (5600 + st.sim.n), type: 'email', dossier: 'D-2026-0142', thread: 'th-ferrand-rib', de: 'm.ferrand@example.fr', objet: 'Re: RIB et avis d’imposition 2025 (message ' + (st.sim.n + 2) + ')' });
+    },
+    email_nouveau() {
+      return E.ingest(st, { id: 'msg-6102', type: 'email', dossier: 'D-2026-0171', thread: 'th-lambert-pac', de: 'c.lambert@example.fr', objet: 'Question sur la pompe à chaleur', pj: ['photo-chaudiere.jpg'] });
+    },
+    relancer() {
+      const emails = Object.values(st.events).filter(e => e.type === 'email' && e.payload);
+      const avant = st.tasks.length;
+      emails.forEach(e => E.ingest(st, e.payload));
+      return { relance: emails.length, crees: st.tasks.length - avant };
+    },
+    devis() {
+      return E.ingest(st, { id: 'doc-devis-912', type: 'devis', dossier: 'D-2026-0157', resume: 'Var Isolation Plus, ITE + menuiseries, 42 860 € TTC' });
+    },
+    accord() {
+      return E.ingest(st, { id: 'anah-acc-1214', type: 'accord_anah', dossier: 'D-2026-0149', montant: '41 250 €' });
+    },
+    pieces() {
+      return E.ingest(st, { id: 'anah-dp-3341', type: 'demande_pieces', dossier: 'D-2026-0142', date: '10/10/2026', echeance: '2026-10-27', pieces: ['Avis d’imposition 2025', 'Attestation sur l’honneur du propriétaire'] });
+    },
+    prospect() {
+      assurerDossier({ id: 'P-2026-0035', client: 'Mme Garcia', commune: 'Le Pradet', parcours: 'Prospect', dpe: ['E', null], etape: 'Prospect' });
+      return E.ingest(st, { id: 'entretien-0035', type: 'entretien_prospect', dossier: 'P-2026-0035', resume: 'entretien du 10/10, appartement 1965, convecteurs électriques' });
+    },
+  };
+  function simuler(k) {
+    if (k === 'coupure') return coupure();
+    const avant = st.journal.length;
+    agir(() => SIM_ACTIONS[k](), r => {
+      if (r && typeof r.relance === 'number') return r.relance + ' emails relus, ' + plural(r.crees, 'tâche créée', 'tâches créées') + '. L’anti-doublon a tenu.';
+      const perime = st.journal.slice(avant).some(j => j.nature === 'reprise');
+      return resumeIngest(r) + (perime ? ' Le brouillon en attente est périmé : approbation annulée, à refaire.' : '');
+    });
+  }
+  function coupure() {
+    const sauvegarde = E.serialize(st);
+    const n = st.tasks.length;
+    const div = document.createElement('div');
+    div.className = 'outage';
+    div.innerHTML = '<div>Session interrompue. Reprise depuis la sauvegarde…</div>';
+    document.body.appendChild(div);
+    st = null;
+    setTimeout(() => {
+      st = E.deserialize(sauvegarde);
+      div.remove();
+      const att = st.tasks.filter(t => t.statut === 'attente_approbation').length;
+      render();
+      toast('Reprise : ' + n + ' tâches retrouvées' + (att ? ', ' + plural(att, 'approbation', 'approbations') + ' toujours en attente au même endroit.' : ', rien de perdu.'));
+    }, 900);
+  }
+
+  // ---------- événements ----------
+  function valeur(id) { const el = document.getElementById(id); return el ? el.value : ''; }
+
+  document.addEventListener('click', ev => {
+    const el = ev.target.closest('[data-tab],[data-open],[data-do],[data-copy],[data-copy-lot],[data-mark-lot],[data-sim],[data-goto],[data-close],[data-reset],[data-example],[data-clear-filters],[data-rerun-tests]');
+    if (!el) return;
+    const ds = el.dataset;
+    if (ds.tab) {
+      ui.tab = ds.tab;
+      try { history.replaceState(null, '', '#' + ds.tab); } catch (e) { /* cadre sans historique */ }
+      render();
+      window.scrollTo(0, 0);
+    } else if (ds.open) {
+      ui.ouvert = ds.open;
+      render();
+      const body = document.querySelector('.drawer-body'); if (body) body.scrollTop = 0;
+      const btn = document.querySelector('.drawer [data-close]'); if (btn) btn.focus();
+    } else if ('close' in ds) {
+      ui.ouvert = null; render();
+    } else if (ds.copy) {
+      copier(E.consigne(st, ds.copy));
+    } else if (ds.copyLot) {
+      copier(lotSession(ds.copyLot));
+    } else if (ds.markLot) {
+      const ids = st.tasks.filter(t => t.session === ds.markLot && t.statut === 'prete').map(t => t.id);
+      agir(() => ids.forEach(id => E.transmettre(st, id)), plural(ids.length, 'consigne marquée comme transmise', 'consignes marquées comme transmises') + ' à ' + nomSession(ds.markLot) + '.');
+    } else if (ds.sim) {
+      simuler(ds.sim);
+    } else if (ds.goto) {
+      const [type, v] = [ds.goto.slice(0, 1), ds.goto.slice(2)];
+      ui.f = { dossier: '', session: '', priorite: '', statut: 'ouvertes', q: '' };
+      if (type === 'g') ui.f.statut = 'g:' + v;
+      if (type === 's') ui.f.session = v;
+      if (type === 'd') { ui.f.dossier = v; ui.f.statut = 'toutes'; }
+      ui.tab = 'taches';
+      try { history.replaceState(null, '', '#taches'); } catch (e) { /* idem */ }
+      render();
+      window.scrollTo(0, 0);
+    } else if (ds.reset) {
+      if (ds.reset === 'demander') ui.confirmReset = true;
+      else if (ds.reset === 'non') ui.confirmReset = false;
+      else { st = E.demo(); ui.confirmReset = false; ui.ouvert = null; sauver(); ui.tests = null; render(); toast('Démo réinitialisée.'); return; }
+      renderTop();
+    } else if (ds.example) {
+      const t = E.getTask(st, ui.ouvert);
+      if (ds.example === 'preuve') document.getElementById('f-preuve').value = EXEMPLE_PREUVE[t.session].replace('{d}', t.dossier.split('-').pop());
+      else document.getElementById('f-exec').value = EXEMPLE_EXEC[t.validation];
+    } else if ('clearFilters' in ds) {
+      ui.f = { dossier: '', session: '', priorite: '', statut: 'ouvertes', q: '' }; render();
+    } else if ('rerunTests' in ds) {
+      ui.tests = null; render(); toast('Tests relancés.');
+    } else if (ds.do) {
+      const id = ui.ouvert;
+      const t = E.getTask(st, id);
+      const nom = nomSession(t.session);
+      const faire = {
+        transmettre: [() => E.transmettre(st, id), 'Marquée comme transmise à ' + nom + '. Elle reste ouverte.'],
+        demarrer: [() => E.demarrer(st, id), nom + ' travaille dessus.'],
+        resultat: [() => E.saisirResultat(st, id, valeur('f-res'), valeur('f-ano')), 'Compte rendu enregistré, à vérifier.'],
+        verifier: [() => E.verifier(st, id, valeur('f-preuve')), () => t.statut === 'attente_approbation' ? 'Vérifiée. L’action attend maintenant ton approbation.' : 'Vérifiée et close.'],
+        renvoyer: [() => E.renvoyer(st, id, 'compte rendu insuffisant'), 'Renvoyée à ' + nom + '.'],
+        approuver: [() => E.approuver(st, id), 'Approuvé pour cette seule action. Copie l’ordre d’exécution.'],
+        refuser: [() => E.refuser(st, id, valeur('f-motif')), 'Refusée. Rien ne sera exécuté.'],
+        executer: [() => E.confirmerExecution(st, id, valeur('f-exec')), 'Exécution vérifiée, tâche close.'],
+        bloquer: [() => E.bloquer(st, id, valeur('f-cause')), 'Tâche bloquée. Le reste du dossier continue.'],
+        debloquer: [() => E.debloquer(st, id), 'Débloquée.'],
+        rouvrir: [() => E.rouvrir(st, id), 'Remise à planifier.'],
+      }[ds.do];
+      if (faire) agir(faire[0], faire[1]);
+    }
+  });
+
+  document.addEventListener('change', ev => {
+    const el = ev.target;
+    if (el.id === 'f-relu') {
+      const b = document.getElementById('btn-approuver');
+      if (b) b.disabled = !el.checked;
+    } else if (el.dataset.f && el.tagName === 'SELECT') {
+      ui.f[el.dataset.f] = el.value; render();
+    } else if ('journal' in el.dataset) {
+      ui.journal = el.value; render();
+    }
+  });
+  document.addEventListener('input', ev => {
+    const el = ev.target;
+    if (el.dataset.f === 'q') { ui.f.q = el.value; render(); }
+  });
+  document.addEventListener('keydown', ev => {
+    if (ev.key === 'Escape' && ui.ouvert) { ui.ouvert = null; render(); }
+  });
+  window.addEventListener('hashchange', () => { ui.tab = lireOnglet(); render(); });
+
+  render();
+})();
+</script>
